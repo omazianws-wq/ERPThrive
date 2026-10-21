@@ -6,11 +6,12 @@
 
 ---
 
-## Current Status: Module 0 — Foundation and Application Shell
+## Current Status: Module 1 — Administration & Identity Foundation
 
 In accordance with the **Strict Single-Module Governance Protocol**, development advances one module at a time:
-- **Module 0 (Active Foundation)**: Provides the application shell, responsive layout engine, accessibility tree, command jumper, and navigational placeholders for future phases.
-- **Modules 1 through 10 (Scheduled)**: Business modules (Administration, Master Data, Finance, Procurement, etc.) remain strictly unimplemented until formal review, functional testing, bug fixing, and explicit authorization of each prerequisite phase.
+- **Module 0 (Approved)**: Application shell, responsive layout engine, accessibility tree, command jumper, and navigational router.
+- **Module 1 (Active & Operational)**: Organization legal entity, multi-tenant company settings, branch facilities, least-privilege RBAC permission matrix, user memberships, append-only audit trail, and versioned PostgreSQL/Supabase schema migration with Row Level Security (RLS).
+- **Modules 2 through 10 (Scheduled)**: Business modules (Master Data, Finance, Procurement, etc.) remain strictly unimplemented placeholders until formal review and authorization.
 - **Zero Fabricated Data**: No fake revenue figures, synthetic transactions, simulated customer accounts, or mock employee profiles are rendered anywhere in the application.
 
 ---
@@ -20,7 +21,7 @@ In accordance with the **Strict Single-Module Governance Protocol**, development
 | Phase | Module Name | Status | Category | Scope Summary |
 | :---: | :--- | :---: | :---: | :--- |
 | **0** | **Dashboard** | **Active Shell** | Core | Foundation workspace overview, navigation hub, shell state. |
-| **1** | Administration | *Scheduled* | Management | Multi-company hierarchy, RBAC, audit logging, session policies. |
+| **1** | **Administration** | **Active & Verified** | Management | Multi-company hierarchy, branch network, RBAC matrix, audit log, RLS schema. |
 | **2** | Master Data | *Scheduled* | Core | Unified chart of accounts, customers, vendors, item catalog, tax. |
 | **3** | Finance & Accounting | *Scheduled* | Management | General ledger, journal vouchers, AP/AR, bank reconciliation. |
 | **4** | Procurement | *Scheduled* | Operations | Purchase requisitions, RFQs, purchase orders, 3-way matching. |

@@ -1,7 +1,8 @@
 import React from 'react';
-import { Menu, Search, Map, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
+import { Menu, Search, Map, PanelLeftClose, PanelLeftOpen, LogOut } from 'lucide-react';
 import { ModuleDefinition } from '../../modules/types.ts';
 import { Logo } from '../brand/Logo.tsx';
+import { useAuth } from '../../modules/auth/AuthContext.tsx';
 
 interface HeaderProps {
   currentModule: ModuleDefinition;
@@ -20,6 +21,8 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenSearch,
   onOpenRoadmap
 }) => {
+  const { user, profile, activeMembership, signOut } = useAuth();
+
   return (
     <header className="sticky top-0 z-20 flex h-16 w-full items-center justify-between border-b border-slate-200 bg-white/95 px-4 backdrop-blur-xs sm:px-6">
       {/* Zone 1: Mobile toggle & Breadcrumb Trail */}
@@ -71,7 +74,7 @@ export const Header: React.FC<HeaderProps> = ({
             <>
               <span className="text-slate-400" aria-hidden="true">·</span>
               <span className="text-xs text-emerald-700 font-medium">
-                Module 0 Foundation
+                Phase {currentModule.phaseNumber} Active
               </span>
             </>
           )}
@@ -106,10 +109,45 @@ export const Header: React.FC<HeaderProps> = ({
         </button>
 
         {/* Foundation Phase Indicator */}
-        <div className="hidden lg:flex items-center gap-1.5 border-l border-slate-200 pl-3 text-xs text-slate-500">
+        <div className="hidden xl:flex items-center gap-1.5 border-l border-slate-200 pl-3 text-xs text-slate-500">
           <span>Engine:</span>
-          <span className="font-mono text-slate-800 font-semibold">v0.1.0-M0</span>
+          <span className="font-mono text-slate-800 font-semibold">v0.2.0-M2</span>
         </div>
+
+        {/* User Account & Sign Out */}
+        {user && (
+          <div className="flex items-center gap-2 border-l border-slate-200 pl-3">
+            <div className="hidden sm:flex flex-col items-end">
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs font-semibold text-slate-900 truncate max-w-[130px]" title={profile?.fullName || user.fullName}>
+                  {profile?.fullName || user.fullName}
+                </span>
+                {activeMembership?.roleId === 'COMPANY_ADMIN' ? (
+                  <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold bg-indigo-50 text-indigo-700 border border-indigo-100">
+                    ADMIN
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono font-medium bg-slate-100 text-slate-600 border border-slate-200">
+                    STAFF
+                  </span>
+                )}
+              </div>
+              <span className="text-[10px] text-slate-400 font-mono truncate max-w-[130px]" title={user.email}>
+                {user.email}
+              </span>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => signOut()}
+              className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-slate-500 hover:bg-red-50 hover:text-red-700 hover:border-red-200 focus-visible:outline-2 focus-visible:outline-red-600 transition"
+              aria-label="Sign out of ERPThrive"
+              title="Sign out of your account"
+            >
+              <LogOut className="h-4 w-4" />
+            </button>
+          </div>
+        )}
       </div>
     </header>
   );

@@ -9,11 +9,20 @@ import { getModuleById, isValidModuleId, getAllModules } from './modules/navigat
 import { Header } from './components/layout/Header.tsx';
 import { Sidebar } from './components/layout/Sidebar.tsx';
 import { DashboardView } from './components/views/DashboardView.tsx';
+import { AdministrationView } from './components/views/AdministrationView.tsx';
 import { ModulePlaceholderView } from './components/views/ModulePlaceholderView.tsx';
 import { ModuleSearchModal } from './components/dialogs/ModuleSearchModal.tsx';
 import { RoadmapModal } from './components/dialogs/RoadmapModal.tsx';
+import { AuthProvider, useAuth } from './modules/auth/AuthContext.tsx';
+import { AuthScreen } from './components/auth/AuthScreen.tsx';
+import { OnboardingView } from './components/auth/OnboardingView.tsx';
+import { AuthViewMode } from './modules/auth/types.ts';
+import { Logo } from './components/brand/Logo.tsx';
+import { RefreshCw, Shield } from 'lucide-react';
 
-export default function App() {
+function AppContent() {
+  const { isAuthenticated, isOnboarding, isLoading, signOut } = useAuth();
+
   // Extract initial module from location hash if valid, otherwise default to 'dashboard'
   const getInitialModule = (): ModuleId => {
     if (typeof window !== 'undefined') {
@@ -30,16 +39,20 @@ export default function App() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
   const [searchModalOpen, setSearchModalOpen] = useState<boolean>(false);
   const [roadmapModalOpen, setRoadmapModalOpen] = useState<boolean>(false);
+  const [authMode, setAuthMode] = useState<AuthViewMode>('login');
 
   // Sync state with browser location hash
   useEffect(() => {
     const handleHashChange = () => {
       const hash = window.location.hash.replace(/^#/, '');
-      if (hash && isValidModuleId(hash)) {
+      if (hash === 'signup' || hash === 'login' || hash === 'forgot-password' || hash === 'reset-password') {
+        setAuthMode(hash as AuthViewMode);
+      } else if (hash && isValidModuleId(hash)) {
         setCurrentModuleId(hash);
       }
     };
 
+    handleHashChange();
     window.addEventListener('hashchange', handleHashChange);
     return () => window.removeEventListener('hashchange', handleHashChange);
   }, []);
@@ -48,7 +61,6 @@ export default function App() {
     if (isValidModuleId(id)) {
       setCurrentModuleId(id);
       window.location.hash = `#${id}`;
-      // Scroll main content to top on view change
       const mainEl = document.querySelector('main');
       if (mainEl) mainEl.scrollTop = 0;
     }
@@ -67,6 +79,39 @@ export default function App() {
     return () => window.removeEventListener('keydown', handleGlobalKeyDown);
   }, []);
 
+  // 1. Loading splash screen while session resolves
+  if (isLoading) {
+    return (
+      <div className="min-h-screen w-full flex flex-col items-center justify-center bg-slate-900 text-white font-sans antialiased">
+        <div className="flex flex-col items-center gap-4">
+          <div className="bg-white p-3.5 rounded-2xl shadow-xl">
+            <Logo size="lg" />
+          </div>
+          <div className="flex items-center gap-2 text-xs font-mono text-slate-300">
+            <RefreshCw className="h-4 w-4 animate-spin text-sky-400" />
+            <span>Verifying enterprise session &amp; RLS boundaries...</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // 2. Unauthenticated: Redirect all routes to Auth Screen
+  if (!isAuthenticated) {
+    return (
+      <AuthScreen
+        initialMode={authMode}
+        onNavigateMode={(mode) => setAuthMode(mode)}
+      />
+    );
+  }
+
+  // 3. Authenticated but user does not belong to any company: Show Onboarding
+  if (isOnboarding) {
+    return <OnboardingView onSignOut={() => signOut()} />;
+  }
+
+  // 4. Authenticated with verified company membership: Render full ERP workspace
   const currentModule = getModuleById(currentModuleId) || getAllModules()[0];
 
   return (
@@ -104,6 +149,10 @@ export default function App() {
               onSelectModule={handleSelectModule}
               onOpenRoadmap={() => setRoadmapModalOpen(true)}
             />
+          ) : currentModule.id === 'administration' ? (
+            <AdministrationView
+              onReturnToDashboard={() => handleSelectModule('dashboard')}
+            />
           ) : (
             <ModulePlaceholderView
               module={currentModule}
@@ -128,5 +177,13 @@ export default function App() {
         onSelectModule={handleSelectModule}
       />
     </div>
+  );
+}
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
   );
 }

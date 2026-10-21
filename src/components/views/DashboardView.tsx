@@ -33,11 +33,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       <section className="rounded-xl border border-slate-200 bg-white p-6 sm:p-8 shadow-xs">
         <div className="flex flex-col gap-4">
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs font-medium text-slate-500">
-            <span>ERPThrive Foundation</span>
+            <span>ERPThrive Enterprise</span>
             <span aria-hidden="true" className="hidden sm:inline">·</span>
-            <span>Module 0 Architecture</span>
+            <span>{summary.currentPhase}</span>
             <span aria-hidden="true" className="hidden sm:inline">·</span>
-            <span className="text-emerald-700 font-semibold">Active Shell</span>
+            <span className="text-emerald-700 font-semibold">{summary.foundationStatus}</span>
           </div>
 
           <div className="flex flex-col gap-2 max-w-3xl">
@@ -46,8 +46,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             </h1>
             <p className="text-sm sm:text-base text-slate-600 leading-relaxed">
               ERPThrive is an original, modular enterprise resource planning platform engineered
-              for high structural stability and sequential scalability. You are viewing the
-              verified Module 0 Foundation and Application Shell.
+              for high structural stability and sequential scalability. Module 0 (Application Shell)
+              and Module 1 (Administration & Identity) are active.
             </p>
           </div>
 
@@ -55,12 +55,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           <div className="mt-2 flex flex-wrap items-center gap-4 border-t border-slate-100 pt-4 text-xs text-slate-600">
             <div className="flex items-center gap-1.5">
               <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-              <span>Foundation Shell: <strong className="text-slate-900">Operational</strong></span>
+              <span>Shell & Administration: <strong className="text-slate-900">Operational</strong></span>
             </div>
             <span className="text-slate-300 hidden sm:inline" aria-hidden="true">|</span>
             <div className="flex items-center gap-1.5">
               <Clock className="h-4 w-4 text-sky-600" />
-              <span>Registered Modules: <strong className="text-slate-900 tabular-nums">11 Modules</strong> (1 Active · 10 Scheduled)</span>
+              <span>Registered Modules: <strong className="text-slate-900 tabular-nums">11 Modules</strong> ({summary.implementedCount} Active · {summary.scheduledCount} Scheduled)</span>
             </div>
             <span className="text-slate-300 hidden sm:inline" aria-hidden="true">|</span>
             <div className="flex items-center gap-1.5">
@@ -112,7 +112,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             </div>
             <div className="mt-4 pt-3 border-t border-slate-100 text-[11px] text-slate-500 flex items-center justify-between">
               <span>Next Candidate</span>
-              <span className="font-mono text-slate-800">Module 1 (Admin)</span>
+              <span className="font-mono text-slate-800">Module 2 (Master Data)</span>
             </div>
           </div>
 

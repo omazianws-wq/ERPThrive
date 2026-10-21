@@ -98,7 +98,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         {isImplemented ? (
                           <span className="flex items-center gap-1 text-[10px] font-mono text-emerald-800 whitespace-nowrap pl-2">
                             <CheckCircle2 className="h-3 w-3 text-emerald-600" />
-                            <span>M0</span>
+                            <span>M{mod.phaseNumber}</span>
                           </span>
                         ) : (
                           <span className="flex items-center gap-1 text-[10px] font-mono text-slate-600 whitespace-nowrap pl-2">
@@ -148,13 +148,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
           {!collapsed ? (
             <div className="flex flex-col gap-2 rounded-lg border border-slate-200/80 bg-white p-3 shadow-xs">
               <div className="flex items-center justify-between text-xs">
-                <span className="font-semibold text-slate-900">Module 0 Foundation</span>
+                <span className="font-semibold text-slate-900">Module 1 Active</span>
                 <span className="font-mono text-[10px] text-emerald-700 font-medium bg-emerald-50 px-1.5 py-0.5 rounded">
-                  Active
+                  Operational
                 </span>
               </div>
               <p className="text-[11px] text-slate-500 leading-snug">
-                Foundation shell verified. Modules 1–10 await sequential development.
+                Foundation & Admin active. Modules 2–10 await sequential development.
               </p>
               <button
                 type="button"

@@ -39,15 +39,17 @@ test('ERPThrive registry includes all required foundation and placeholder module
   }
 });
 
-test('Only Dashboard (Module 0) is active; all other 10 business modules are strictly scheduled', () => {
+test('Dashboard (Module 0) and Administration (Module 1) are active; remaining 9 business modules are strictly scheduled', () => {
   const activeModules = MODULE_REGISTRY.filter((m) => m.status === 'active');
   const scheduledModules = MODULE_REGISTRY.filter((m) => m.status === 'scheduled');
 
-  assert.equal(activeModules.length, 1);
-  assert.equal(activeModules[0].id, 'dashboard');
+  assert.equal(activeModules.length, 2);
+  const activeIds = activeModules.map((m) => m.id).sort();
+  assert.deepEqual(activeIds, ['administration', 'dashboard']);
   assert.equal(isModuleImplemented('dashboard'), true);
+  assert.equal(isModuleImplemented('administration'), true);
 
-  assert.equal(scheduledModules.length, 10);
+  assert.equal(scheduledModules.length, 9);
   for (const mod of scheduledModules) {
     assert.equal(isModuleImplemented(mod.id), false, `Module ${mod.id} must NOT report as implemented`);
     assert.equal(mod.status, 'scheduled');
@@ -74,12 +76,12 @@ test('Category grouping distributes all 11 modules across four standard categori
   assert.equal(totalCount, 11);
 });
 
-test('Foundation status summary accurately reflects Module 0 scope', () => {
+test('Foundation status summary accurately reflects Module 1 scope', () => {
   const summary = getFoundationStatusSummary();
   assert.equal(summary.totalModules, 11);
-  assert.equal(summary.implementedCount, 1);
-  assert.equal(summary.scheduledCount, 10);
-  assert.equal(summary.currentPhase, 'Module 0: Foundation and Application Shell');
+  assert.equal(summary.implementedCount, 2);
+  assert.equal(summary.scheduledCount, 9);
+  assert.equal(summary.currentPhase, 'Module 1: Administration & Identity Foundation');
 });
 
 test('Invalid module IDs are safely rejected', () => {

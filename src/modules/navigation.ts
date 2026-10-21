@@ -31,17 +31,17 @@ export const MODULE_REGISTRY: readonly ModuleDefinition[] = [
     name: 'Administration',
     shortName: 'Admin',
     iconName: 'ShieldCheck',
-    status: 'scheduled',
+    status: 'active',
     phaseNumber: 1,
     category: 'Management',
-    description: 'Enterprise organization hierarchy, tenant configuration, and security management.',
+    description: 'Enterprise organization hierarchy, tenant configuration, branches, and security management.',
     plannedCapabilities: [
       'Multi-entity company & branch hierarchy',
       'Role-based access control (RBAC) & granular permissions',
       'Audit logging and security trails',
       'Delegation and session policies'
     ],
-    prerequisites: 'Module 0 Foundation'
+    prerequisites: 'Module 0 Foundation (Implemented)'
   },
   {
     id: 'master-data',
@@ -213,7 +213,7 @@ export function isValidModuleId(id: string): id is ModuleId {
 }
 
 export function isModuleImplemented(id: string): boolean {
-  return id === 'dashboard';
+  return id === 'dashboard' || id === 'administration';
 }
 
 export function getModulesByCategory(): Record<ModuleCategory, ModuleDefinition[]> {
@@ -241,8 +241,8 @@ export function getFoundationStatusSummary() {
     totalModules,
     implementedCount,
     scheduledCount,
-    currentPhase: 'Module 0: Foundation and Application Shell',
+    currentPhase: 'Module 1: Administration & Identity Foundation',
     foundationStatus: 'Active & Verified',
-    nextPhase: 'Module 1: Administration (Awaiting approval)'
+    nextPhase: 'Module 2: Master Data (Awaiting approval)'
   };
 }

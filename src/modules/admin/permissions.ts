@@ -105,13 +105,21 @@ export function canAssignRole(callerRoleId: SystemRoleId, targetRoleId: SystemRo
   const target = SYSTEM_ROLES[targetRoleId];
   if (!caller || !target) return false;
 
-  // Only users with admin:role:admin or Company Admin level can assign roles
+  // Target role can NEVER be SUPER_ADMIN in company membership assignment (prevents horizontal super-admin proliferation)
+  if (targetRoleId === 'SUPER_ADMIN') {
+    return false;
+  }
+
+  // Only users with Company Admin level (80+) or Super Admin (100) can assign roles
   if (caller.hierarchyLevel < 80) {
     return false;
   }
 
-  // Caller can only assign roles strictly lower than or equal to their authorized level
-  // Super admin (100) can assign all roles
-  // Company admin (80) can assign up to Company Admin (for peers) or lower (Operations, Staff)
-  return caller.hierarchyLevel >= target.hierarchyLevel;
+  // Super Admin (platform authority) can assign any tenant role (COMPANY_ADMIN, OPERATIONS_MANAGER, STAFF_USER)
+  if (callerRoleId === 'SUPER_ADMIN') {
+    return true;
+  }
+
+  // Caller can only assign roles strictly lower than their authorized level
+  return caller.hierarchyLevel > target.hierarchyLevel;
 }

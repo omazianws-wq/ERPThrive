@@ -582,9 +582,21 @@ class AdminStore {
     this.assertTenantAccess(auth, membership.companyId);
     this.assertPermission(auth, 'admin:user:update');
 
-    // Prevent privilege self-escalation
-    if (membership.userId === auth.userId && input.roleId && input.roleId !== membership.roleId) {
+    // Prevent privilege self-alteration
+    if (membership.userId === auth.userId) {
       throw new UnauthorizedError('Users cannot alter or escalate their own role assignment.');
+    }
+
+    // Target protection: non-super-admins cannot modify SUPER_ADMIN or peer/higher administrators
+    if (auth.roleId !== 'SUPER_ADMIN') {
+      if (membership.roleId === 'SUPER_ADMIN') {
+        throw new UnauthorizedError('Unauthorized to modify Super Administrator membership.');
+      }
+      const callerLevel = SYSTEM_ROLES[auth.roleId]?.hierarchyLevel ?? 0;
+      const targetLevel = SYSTEM_ROLES[membership.roleId]?.hierarchyLevel ?? 0;
+      if (targetLevel >= callerLevel) {
+        throw new UnauthorizedError('Unauthorized to modify membership with equal or higher role level.');
+      }
     }
 
     if (input.roleId && !canAssignRole(auth.roleId, input.roleId)) {

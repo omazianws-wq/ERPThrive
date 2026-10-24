@@ -202,15 +202,85 @@ test('6. Anti-privilege escalation: Users cannot modify their own role or assign
     /Users cannot alter or escalate their own role/
   );
 
-  // 6.2 Admins cannot assign a role with higher hierarchy than their own
+  // 6.1b Users cannot alter own membership even without role change
+  assert.throws(
+    () => {
+      adminService.updateMembership(companyAdminAuth, callerMembership.id, {
+        status: 'deactivated'
+      });
+    },
+    /Users cannot alter or escalate their own role/
+  );
+
+  // 6.2 Admins cannot assign a role with equal or higher hierarchy than their own
   const callerHierarchy = SYSTEM_ROLES[companyAdminAuth.roleId].hierarchyLevel; // 80 for COMPANY_ADMIN
   const superAdminHierarchy = SYSTEM_ROLES['SUPER_ADMIN'].hierarchyLevel; // 100
 
   assert.ok(superAdminHierarchy > callerHierarchy);
+  // COMPANY_ADMIN cannot assign SUPER_ADMIN
   assert.equal(canAssignRole('COMPANY_ADMIN', 'SUPER_ADMIN'), false);
-
-  // Can assign roles equal or lower in hierarchy (e.g. peer Company Admin, Operations, Staff)
-  assert.equal(canAssignRole('COMPANY_ADMIN', 'COMPANY_ADMIN'), true);
+  // COMPANY_ADMIN cannot assign peer COMPANY_ADMIN (anti-privilege escalation)
+  assert.equal(canAssignRole('COMPANY_ADMIN', 'COMPANY_ADMIN'), false);
+  // COMPANY_ADMIN can assign strictly lower roles (Operations, Staff)
   assert.equal(canAssignRole('COMPANY_ADMIN', 'OPERATIONS_MANAGER'), true);
   assert.equal(canAssignRole('COMPANY_ADMIN', 'STAFF_USER'), true);
+
+  // SUPER_ADMIN can assign any tenant role, but cannot assign SUPER_ADMIN via membership management
+  assert.equal(canAssignRole('SUPER_ADMIN', 'SUPER_ADMIN'), false);
+  assert.equal(canAssignRole('SUPER_ADMIN', 'COMPANY_ADMIN'), true);
+  assert.equal(canAssignRole('SUPER_ADMIN', 'OPERATIONS_MANAGER'), true);
+  assert.equal(canAssignRole('SUPER_ADMIN', 'STAFF_USER'), true);
 });
+
+test('7. Profile roster visibility: Authorized administrators can inspect company member profiles', () => {
+  // Company Admin can retrieve memberships with populated user profiles for their company
+  const memberships = adminService.getCompanyMemberships(companyAdminAuth, 'cmp-001-global');
+  assert.ok(memberships.length > 0);
+
+  // Each membership includes user display details required by the admin console
+  for (const m of memberships) {
+    assert.ok(m.user, 'Member profile must be resolved');
+    assert.ok(m.user.email, 'Member email must be present for admin display');
+    assert.ok(m.user.fullName, 'Member full name must be present for admin display');
+  }
+
+  // Cross-tenant: Staff user or foreign user cannot access company memberships
+  assert.throws(
+    () => {
+      adminService.getCompanyMemberships(staffAuth, 'cmp-001-global');
+    },
+    (err: unknown) => err instanceof UnauthorizedError
+  );
+
+  assert.throws(
+    () => {
+      adminService.getCompanyMemberships(foreignCompanyAdminAuth, 'cmp-001-global');
+    },
+    (err: unknown) => err instanceof TenantIsolationError
+  );
+});
+
+test('8. Role assignment matrix: Exhaustive role assignment & hierarchy boundaries', () => {
+  // Staff user (level 10) cannot assign any role
+  assert.equal(canAssignRole('STAFF_USER', 'STAFF_USER'), false);
+  assert.equal(canAssignRole('STAFF_USER', 'OPERATIONS_MANAGER'), false);
+  assert.equal(canAssignRole('STAFF_USER', 'COMPANY_ADMIN'), false);
+  assert.equal(canAssignRole('STAFF_USER', 'SUPER_ADMIN'), false);
+
+  // Operations Manager (level 50) cannot assign any role (requires level 80)
+  assert.equal(canAssignRole('OPERATIONS_MANAGER', 'STAFF_USER'), false);
+  assert.equal(canAssignRole('OPERATIONS_MANAGER', 'OPERATIONS_MANAGER'), false);
+
+  // Company Admin (level 80) can only assign strictly lower roles
+  assert.equal(canAssignRole('COMPANY_ADMIN', 'STAFF_USER'), true);
+  assert.equal(canAssignRole('COMPANY_ADMIN', 'OPERATIONS_MANAGER'), true);
+  assert.equal(canAssignRole('COMPANY_ADMIN', 'COMPANY_ADMIN'), false);
+  assert.equal(canAssignRole('COMPANY_ADMIN', 'SUPER_ADMIN'), false);
+
+  // Super Admin can assign all tenant roles, but cannot assign SUPER_ADMIN via company memberships
+  assert.equal(canAssignRole('SUPER_ADMIN', 'STAFF_USER'), true);
+  assert.equal(canAssignRole('SUPER_ADMIN', 'OPERATIONS_MANAGER'), true);
+  assert.equal(canAssignRole('SUPER_ADMIN', 'COMPANY_ADMIN'), true);
+  assert.equal(canAssignRole('SUPER_ADMIN', 'SUPER_ADMIN'), false);
+});
+

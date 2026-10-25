@@ -7,7 +7,8 @@ import {
   validatePasswordConfirmation,
   formatAuthErrorMessage,
   getAuthRedirectUrl,
-  parseAuthCallbackFromUrl
+  parseAuthCallbackFromUrl,
+  evaluateInvitationStatus
 } from './authService.ts';
 
 test('Email validation accepts valid emails and rejects invalid formats', () => {
@@ -98,4 +99,89 @@ test('parseAuthCallbackFromUrl returns null when no auth parameters are present'
   assert.equal(parseAuthCallbackFromUrl('', ''), null);
   assert.equal(parseAuthCallbackFromUrl('#dashboard', ''), null);
   assert.equal(parseAuthCallbackFromUrl('#login', '?tab=overview'), null);
+});
+
+test('evaluateInvitationStatus handles active memberships found', () => {
+  const outcome = evaluateInvitationStatus({
+    success: true,
+    activeCount: 1,
+    invitedCount: 0,
+    allMemberships: [
+      {
+        id: 'mem-1',
+        companyId: 'cmp-1',
+        companyName: 'Acme Global Corp',
+        roleId: 'COMPANY_ADMIN',
+        status: 'active'
+      }
+    ]
+  });
+
+  assert.equal(outcome.status, 'active-found');
+  assert.match(outcome.message, /1 active organization membership/i);
+});
+
+test('evaluateInvitationStatus handles pending invitations with company details', () => {
+  const outcome = evaluateInvitationStatus({
+    success: true,
+    activeCount: 0,
+    invitedCount: 2,
+    allMemberships: [
+      {
+        id: 'mem-inv-1',
+        companyId: 'cmp-1',
+        companyName: 'Initech LLC',
+        roleId: 'STAFF_USER',
+        status: 'invited'
+      },
+      {
+        id: 'mem-inv-2',
+        companyId: 'cmp-2',
+        companyName: 'Umbrella Corp',
+        roleId: 'OPERATIONS_MANAGER',
+        status: 'invited'
+      }
+    ]
+  });
+
+  assert.equal(outcome.status, 'invitations-found');
+  assert.match(outcome.message, /2 pending invitation/i);
+  assert.ok(outcome.details?.includes('Initech LLC (STAFF_USER)'));
+  assert.ok(outcome.details?.includes('Umbrella Corp (OPERATIONS_MANAGER)'));
+});
+
+test('evaluateInvitationStatus handles no memberships or invitations found', () => {
+  const outcome = evaluateInvitationStatus(
+    {
+      success: true,
+      activeCount: 0,
+      invitedCount: 0,
+      allMemberships: []
+    },
+    'omazianws@gmail.com'
+  );
+
+  assert.equal(outcome.status, 'none-found');
+  assert.match(outcome.message, /no memberships or invitations found/i);
+  assert.match(outcome.details || '', /omazianws@gmail\.com/);
+});
+
+test('evaluateInvitationStatus surfaces database or RLS errors transparently', () => {
+  const outcome = evaluateInvitationStatus({
+    success: false,
+    activeCount: 0,
+    invitedCount: 0,
+    allMemberships: [],
+    error: {
+      message: 'permission denied for table company_memberships',
+      code: '42501',
+      details: 'RLS check failed for relation company_memberships',
+      hint: 'Ensure policies permit reading memberships'
+    }
+  });
+
+  assert.equal(outcome.status, 'error');
+  assert.match(outcome.message, /permission denied/i);
+  assert.equal(outcome.code, '42501');
+  assert.match(outcome.details || '', /RLS check failed/i);
 });

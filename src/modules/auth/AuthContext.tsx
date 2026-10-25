@@ -6,7 +6,8 @@ import {
   AuthUserProfile,
   UserCompanyMembership,
   LoginCredentials,
-  SignUpCredentials
+  SignUpCredentials,
+  InvitationCheckResult
 } from './types.ts';
 import {
   validateEmail,
@@ -26,7 +27,7 @@ interface AuthContextValue extends AuthState {
   signOut: () => Promise<void>;
   resetPasswordForEmail: (email: string) => Promise<{ success: boolean; error?: string }>;
   updatePassword: (password: string) => Promise<{ success: boolean; error?: string }>;
-  refreshSession: () => Promise<void>;
+  refreshSession: () => Promise<InvitationCheckResult>;
   signInDemo: (role: SystemRoleId, simulateUnassigned?: boolean) => void;
   switchCompany: (companyId: string) => void;
   clearError: () => void;
@@ -65,6 +66,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     };
 
     let userMemberships: UserCompanyMembership[] = [];
+    let queryError: { message: string; code?: string; details?: string; hint?: string } | undefined;
 
     if (supabase) {
       try {
@@ -75,7 +77,15 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           .eq('id', userId)
           .maybeSingle();
 
-        if (prof && !profErr) {
+        if (profErr) {
+          console.warn('[ERPThrive Auth] user_profiles query warning:', profErr);
+          queryError = {
+            message: profErr.message,
+            code: profErr.code,
+            details: profErr.details,
+            hint: profErr.hint
+          };
+        } else if (prof) {
           userProfile = {
             id: prof.id,
             email: prof.email || userEmail,
@@ -87,13 +97,21 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         }
 
         // 2. Fetch company memberships from public.company_memberships
+        // Query memberships for the authenticated user to detect both active and pending invitations
         const { data: mems, error: memsErr } = await supabase
           .from('company_memberships')
-          .select('id, company_id, role_id, status, companies(id, legal_name, display_name)')
-          .eq('user_id', userId)
-          .eq('status', 'active');
+          .select('id, company_id, role_id, status, created_at, companies(id, legal_name, display_name)')
+          .eq('user_id', userId);
 
-        if (mems && !memsErr && Array.isArray(mems)) {
+        if (memsErr) {
+          console.warn('[ERPThrive Auth] company_memberships query warning:', memsErr);
+          queryError = {
+            message: memsErr.message,
+            code: memsErr.code,
+            details: memsErr.details,
+            hint: memsErr.hint
+          };
+        } else if (mems && Array.isArray(mems)) {
           userMemberships = mems.map((m: any) => ({
             id: m.id,
             companyId: m.company_id,
@@ -102,14 +120,27 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             status: m.status as UserCompanyMembership['status']
           }));
         }
-      } catch (err) {
+      } catch (err: any) {
         console.warn('[ERPThrive Auth] Error retrieving user profile/membership:', err);
+        queryError = {
+          message: err?.message || 'Unexpected network or database exception during membership lookup.'
+        };
       }
     }
 
     setProfile(userProfile);
-    setMemberships(userMemberships);
-    setActiveMembership(userMemberships.length > 0 ? userMemberships[0] : null);
+
+    // Active memberships grant access to operational modules
+    const activeMemberships = userMemberships.filter((m) => m.status === 'active');
+    setMemberships(activeMemberships);
+    setActiveMembership(activeMemberships.length > 0 ? activeMemberships[0] : null);
+
+    return {
+      userProfile,
+      allMemberships: userMemberships,
+      activeMemberships,
+      queryError
+    };
   }, []);
 
   /**
@@ -501,13 +532,41 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   /**
    * Refreshes the session and re-checks profile/membership in PostgreSQL schema.
+   * Returns a structured InvitationCheckResult without toggling global isLoading (which would unmount active views).
    */
-  const refreshSession = async (): Promise<void> => {
-    if (isDemoSession) return;
-    if (!supabase || !user) return;
-    setIsLoading(true);
-    await loadUserData(user.id, user.email, user.fullName);
-    setIsLoading(false);
+  const refreshSession = async (): Promise<InvitationCheckResult> => {
+    if (isDemoSession) {
+      return {
+        success: true,
+        activeCount: memberships.length,
+        invitedCount: 0,
+        allMemberships: memberships
+      };
+    }
+
+    if (!supabase || !user) {
+      return {
+        success: false,
+        activeCount: 0,
+        invitedCount: 0,
+        allMemberships: [],
+        error: { message: 'No active session or Supabase client available.' }
+      };
+    }
+
+    // Do NOT set global isLoading=true here.
+    // Setting global isLoading replaces AppContent with the splash screen, unmounting OnboardingView and destroying local state.
+    const result = await loadUserData(user.id, user.email, user.fullName);
+    const activeCount = result.activeMemberships.length;
+    const invitedCount = result.allMemberships.filter((m) => m.status === 'invited').length;
+
+    return {
+      success: !result.queryError,
+      activeCount,
+      invitedCount,
+      allMemberships: result.allMemberships,
+      error: result.queryError
+    };
   };
 
   /**

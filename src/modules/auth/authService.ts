@@ -1,6 +1,4 @@
-/**
- * Pure validation and formatting helpers for Module 2 Authentication.
- */
+import { InvitationCheckResult, InvitationCheckOutcome } from './types.ts';
 
 export function validateEmail(email: string): string | null {
   if (!email || typeof email !== 'string') {
@@ -254,5 +252,45 @@ export function cleanAuthUrlParams(targetRouteHash?: string): void {
   } catch (err) {
     console.warn('[ERPThrive Auth] Could not clean URL params:', err);
   }
+}
+
+/**
+ * Evaluates an invitation check result into a clear, actionable outcome for the onboarding view.
+ */
+export function evaluateInvitationStatus(result: InvitationCheckResult, email?: string): InvitationCheckOutcome {
+  if (result.error) {
+    return {
+      status: 'error',
+      message: `Database query failed: ${result.error.message}`,
+      code: result.error.code,
+      details: result.error.details || result.error.hint
+    };
+  }
+
+  if (result.activeCount > 0) {
+    return {
+      status: 'active-found',
+      message: `Found ${result.activeCount} active organization membership. Redirecting to workspace...`
+    };
+  }
+
+  if (result.invitedCount > 0) {
+    const companyNames = result.allMemberships
+      .filter((m) => m.status === 'invited')
+      .map((m) => `${m.companyName} (${m.roleId})`)
+      .join(', ');
+
+    return {
+      status: 'invitations-found',
+      message: `Found ${result.invitedCount} pending invitation. Awaiting organization administrator approval.`,
+      details: companyNames ? `Pending: ${companyNames}` : undefined
+    };
+  }
+
+  return {
+    status: 'none-found',
+    message: 'No memberships or invitations found in public.company_memberships for this account.',
+    details: email ? `Queried for ${email}.` : undefined
+  };
 }
 

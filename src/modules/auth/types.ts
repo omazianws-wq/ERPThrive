@@ -20,6 +20,26 @@ export interface UserCompanyMembership {
   isDefault?: boolean;
 }
 
+export interface InvitationCheckResult {
+  success: boolean;
+  activeCount: number;
+  invitedCount: number;
+  allMemberships: UserCompanyMembership[];
+  error?: {
+    message: string;
+    code?: string;
+    details?: string;
+    hint?: string;
+  };
+}
+
+export interface InvitationCheckOutcome {
+  status: 'active-found' | 'invitations-found' | 'none-found' | 'error';
+  message: string;
+  details?: string;
+  code?: string;
+}
+
 export interface AuthState {
   user: {
     id: string;

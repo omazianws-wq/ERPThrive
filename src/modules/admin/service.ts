@@ -14,7 +14,7 @@ import {
   ValidationError,
   SystemRoleId
 } from './types.ts';
-import { hasPermission, canAssignRole, LEAST_PRIVILEGE_DEFAULT_ROLE } from './permissions.ts';
+import { hasPermission, canAssignRole, LEAST_PRIVILEGE_DEFAULT_ROLE, SYSTEM_ROLES } from './permissions.ts';
 
 export class AdminServiceError extends Error {
   constructor(message: string, public code: string, public status: number = 400) {

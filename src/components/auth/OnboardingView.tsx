@@ -14,6 +14,8 @@ import {
   Info
 } from 'lucide-react';
 import { useAuth } from '../../modules/auth/AuthContext.tsx';
+import { evaluateInvitationStatus } from '../../modules/auth/authService.ts';
+import { InvitationCheckOutcome } from '../../modules/auth/types.ts';
 import { Logo } from '../brand/Logo.tsx';
 
 interface OnboardingViewProps {
@@ -24,15 +26,26 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({ onSignOut }) => 
   const { user, profile, refreshSession, signOut, signInDemo, authNotice, clearAuthNotice } = useAuth();
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [refreshNotice, setRefreshNotice] = useState<string | null>(null);
+  const [checkOutcome, setCheckOutcome] = useState<InvitationCheckOutcome | null>(null);
+  const [lastCheckedAt, setLastCheckedAt] = useState<string | null>(null);
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
-    setRefreshNotice(null);
+    setCheckOutcome(null);
     try {
-      await refreshSession();
-      setRefreshNotice('Checked public schema. No active company memberships found for this account yet.');
-    } catch {
-      setRefreshNotice('Failed to check memberships. Please verify network connectivity.');
+      const result = await refreshSession();
+      const outcome = evaluateInvitationStatus(result, user?.email);
+      setCheckOutcome(outcome);
+      setRefreshNotice(outcome.message);
+      setLastCheckedAt(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
+    } catch (err: any) {
+      const errorOutcome: InvitationCheckOutcome = {
+        status: 'error',
+        message: err?.message || 'Failed to check memberships. Please verify network connectivity.'
+      };
+      setCheckOutcome(errorOutcome);
+      setRefreshNotice(errorOutcome.message);
+      setLastCheckedAt(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
     } finally {
       setIsRefreshing(false);
     }
@@ -156,9 +169,22 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({ onSignOut }) => 
           </div>
 
           {refreshNotice && (
-            <div className="mt-4 p-3 rounded-lg bg-sky-50 border border-sky-100 text-xs text-sky-900 flex items-center gap-2">
-              <Info className="h-4 w-4 text-sky-600 shrink-0" />
-              <span>{refreshNotice}</span>
+            <div className={`mt-4 p-3 rounded-lg border text-xs flex items-center justify-between gap-2 ${
+              checkOutcome?.status === 'error'
+                ? 'bg-rose-50 border-rose-200 text-rose-950'
+                : checkOutcome?.status === 'active-found'
+                ? 'bg-emerald-50 border-emerald-200 text-emerald-950'
+                : 'bg-sky-50 border-sky-100 text-sky-900'
+            }`}>
+              <div className="flex items-center gap-2">
+                <Info className="h-4 w-4 text-sky-600 shrink-0" />
+                <span>{refreshNotice}</span>
+              </div>
+              {lastCheckedAt && (
+                <span className="font-mono text-[10px] text-slate-400 shrink-0">
+                  Checked at {lastCheckedAt}
+                </span>
+              )}
             </div>
           )}
         </div>
@@ -201,17 +227,78 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({ onSignOut }) => 
               </div>
             </div>
 
-            <div className="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between">
-              <span className="text-xs text-slate-500">Already invited?</span>
-              <button
-                type="button"
-                onClick={handleRefresh}
-                disabled={isRefreshing}
-                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-semibold text-white bg-slate-900 hover:bg-slate-800 disabled:opacity-50 transition shadow-xs"
-              >
-                <RefreshCw className={`h-3.5 w-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
-                <span>{isRefreshing ? 'Checking...' : 'Check for Invitations'}</span>
-              </button>
+            <div className="mt-6 pt-4 border-t border-slate-100 flex flex-col gap-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-slate-500">Already invited?</span>
+                <button
+                  type="button"
+                  onClick={handleRefresh}
+                  disabled={isRefreshing}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-semibold text-white bg-slate-900 hover:bg-slate-800 disabled:opacity-50 transition shadow-xs cursor-pointer"
+                >
+                  <RefreshCw className={`h-3.5 w-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
+                  <span>{isRefreshing ? 'Checking Supabase...' : 'Check for Invitations'}</span>
+                </button>
+              </div>
+
+              {/* In-place Invitation Status Result Banner */}
+              {checkOutcome && (
+                <div
+                  className={`rounded-lg p-3 text-xs border transition-all ${
+                    checkOutcome.status === 'active-found'
+                      ? 'bg-emerald-50 border-emerald-200 text-emerald-950'
+                      : checkOutcome.status === 'invitations-found'
+                      ? 'bg-sky-50 border-sky-200 text-sky-950'
+                      : checkOutcome.status === 'error'
+                      ? 'bg-rose-50 border-rose-200 text-rose-950'
+                      : 'bg-slate-50 border-slate-200 text-slate-800'
+                  }`}
+                >
+                  <div className="flex items-start gap-2.5">
+                    {checkOutcome.status === 'active-found' && (
+                      <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
+                    )}
+                    {checkOutcome.status === 'invitations-found' && (
+                      <Info className="h-4 w-4 text-sky-600 shrink-0 mt-0.5" />
+                    )}
+                    {checkOutcome.status === 'error' && (
+                      <AlertCircle className="h-4 w-4 text-rose-600 shrink-0 mt-0.5" />
+                    )}
+                    {checkOutcome.status === 'none-found' && (
+                      <Info className="h-4 w-4 text-slate-500 shrink-0 mt-0.5" />
+                    )}
+
+                    <div className="flex-1 min-w-0">
+                      <div className="font-semibold flex items-center justify-between gap-2">
+                        <span>{checkOutcome.message}</span>
+                        {lastCheckedAt && (
+                          <span className="font-mono text-[10px] text-slate-400 font-normal shrink-0">
+                            {lastCheckedAt}
+                          </span>
+                        )}
+                      </div>
+
+                      {checkOutcome.details && (
+                        <div className="mt-1 text-[11px] opacity-90 leading-relaxed font-mono">
+                          {checkOutcome.details}
+                        </div>
+                      )}
+
+                      {checkOutcome.code && (
+                        <div className="mt-1 text-[10px] font-mono text-rose-700">
+                          Error Code: {checkOutcome.code}
+                        </div>
+                      )}
+
+                      {checkOutcome.status === 'none-found' && (
+                        <div className="mt-2 text-[11px] text-slate-600 border-t border-slate-200/60 pt-1.5 leading-relaxed">
+                          If an administrator just invited you, verify that they entered your exact email (<span className="font-mono font-medium text-slate-900">{user?.email}</span>).
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
